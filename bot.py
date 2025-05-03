@@ -101,6 +101,26 @@ def handle_my_score(message):
         with open(tmp.name, 'rb') as photo:
             bot.send_photo(user_id, photo, caption="Вот твои достижения!")
 
+@bot.message_handler(commands=['resend'])
+def handle_resend(message):
+    user_id = message.chat.id
+    conn = sqlite3.connect(DATABASE)
+    with conn:
+        cur = conn.cursor()
+        cur.execute('''SELECT prize_id FROM winners WHERE user_id = ? AND received = 0''', (user_id,))
+        missed_prizes = cur.fetchall()
+
+        if missed_prizes:
+            for prize in missed_prizes:
+                prize_id = prize[0]
+                img = manager.get_prize_img(prize_id)
+                with open(f'img/{img}', 'rb') as photo:
+                    bot.send_photo(user_id, photo, caption="Ты пропустил картинку. Вот она снова!")
+                cur.execute('''UPDATE winners SET received = 1 WHERE user_id = ? AND prize_id = ?''', (user_id, prize_id))
+                conn.commit()
+        else:
+            bot.reply_to(message, "Ты не пропустил никаких картинок!")
+
 
 def polling_thread():
     bot.polling(none_stop=True)

@@ -1,0 +1,2 @@
+API_TOKEN = '7756358632:AAHslRehr2qgSVFNSVAwYEy4Hji0lewBgHc'
+DATABASE = 'data.db'

@@ -3,6 +3,8 @@ from datetime import datetime
 from config import DATABASE 
 import os
 import cv2
+from math import floor, ceil, sqrt
+import numpy as np
 
 class DatabaseManager:
     def __init__(self, database):
@@ -111,7 +113,19 @@ class DatabaseManager:
             LIMIT 10
             ''')
             return cur.fetchall()
-
+        
+    def get_winners_img(self, user_id):
+        conn = sqlite3.connect(self.database)
+        with conn:
+            cur = conn.cursor()
+            cur.execute(''' 
+                SELECT image FROM winners 
+                INNER JOIN prizes ON 
+                winners.prize_id = prizes.prize_id
+                WHERE user_id = ?
+            ''', (user_id,))
+            return cur.fetchall()
+    
   
 def hide_img(img_name):
     image = cv2.imread(f'img/{img_name}')
@@ -119,6 +133,34 @@ def hide_img(img_name):
     pixelated_image = cv2.resize(blurred_image, (30, 30), interpolation=cv2.INTER_NEAREST)
     pixelated_image = cv2.resize(pixelated_image, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
     cv2.imwrite(f'hidden_img/{img_name}', pixelated_image)
+
+def create_collage(user_prizes, image_folder='img', hidden_folder='hidden_img'):
+    all_images = os.listdir(image_folder)
+    image_paths = []
+
+    for image_name in all_images:
+        if image_name in user_prizes:
+            image_paths.append(os.path.join(image_folder, image_name))
+        else:
+            image_paths.append(os.path.join(hidden_folder, image_name))
+
+    images = [cv2.imread(path) for path in image_paths if cv2.imread(path) is not None]
+    if not images:
+        return None
+
+    h, w, _ = images[0].shape
+    num_images = len(images)
+    num_cols = floor(sqrt(num_images))
+    num_rows = ceil(num_images / num_cols)
+
+    collage = np.zeros((num_rows * h, num_cols * w, 3), dtype=np.uint8)
+
+    for i, image in enumerate(images):
+        row = i // num_cols
+        col = i % num_cols
+        collage[row*h:(row+1)*h, col*w:(col+1)*w] = image
+
+    return collage
 
 if __name__ == '__main__':
     manager = DatabaseManager(DATABASE)
